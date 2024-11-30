@@ -1,43 +1,39 @@
-"""
-URL configuration for localmart project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.1/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-from api.views import TestConnectionViewSet
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from users.views import UserViewSet
-from products.views import ProductViewSet
+from products.views import ProductViewSet, CategoryViewSet, WishlistViewSet
+from chat.views import ChatViewSet
 
-# Create a router and register our viewsets with it
 router = DefaultRouter()
-router.register(r'test', TestConnectionViewSet, basename='test')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'products', ProductViewSet, basename='product')
+router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'chat/rooms', ChatViewSet, basename='chat-room')
+router.register(r'wishlist', WishlistViewSet, basename='wishlist')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include([
         path('', include(router.urls)),
-        path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-        path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-        path('users/login/', UserViewSet.as_view({'post': 'login'}), name='user-login'),
-        path('users/register/', UserViewSet.as_view({'post': 'register'}), name='user-register'),
+        # Auth endpoints
+        path('auth/', include([
+            path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+            path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+            path('login/', UserViewSet.as_view({'post': 'login'}), name='user-login'),
+            path('register/', UserViewSet.as_view({'post': 'register'}), name='user-register'),
+        ])),
+        # Product endpoints
+        path('products/', include([
+            path('my/', ProductViewSet.as_view({'get': 'my_listings'}), name='my-listings'),
+            path('<int:pk>/wishlist/', WishlistViewSet.as_view({
+                'get': 'list',
+                'post': 'toggle'
+            }), name='product-wishlist'),
+            path('<int:pk>/analytics/', ProductViewSet.as_view({'get': 'analytics'}), name='product-analytics'),
+        ])),
+        # Chat endpoints
+        path('chat/rooms/create/', ChatViewSet.as_view({'post': 'create_or_get_room'}), name='create-get-room'),
     ])),
 ]

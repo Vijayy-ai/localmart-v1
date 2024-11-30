@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 class ErrorBoundary extends React.Component {
     state = { hasError: false, error: null };
@@ -12,16 +12,17 @@ class ErrorBoundary extends React.Component {
         console.error('Error caught by boundary:', error, errorInfo);
     }
 
+    handleRetry = () => {
+        this.setState({ hasError: false, error: null });
+    };
+
     render() {
         if (this.state.hasError) {
             return (
                 <View style={styles.container}>
-                    <Text style={styles.title}>Something went wrong</Text>
-                    <Text style={styles.error}>{this.state.error?.message}</Text>
-                    <TouchableOpacity 
-                        style={styles.button}
-                        onPress={() => this.setState({ hasError: false })}
-                    >
+                    <Text style={styles.title}>Oops! Something went wrong</Text>
+                    <Text style={styles.message}>{this.state.error?.message}</Text>
+                    <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
                         <Text style={styles.buttonText}>Try Again</Text>
                     </TouchableOpacity>
                 </View>
@@ -44,19 +45,21 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 10,
     },
-    error: {
-        color: 'red',
-        marginBottom: 20,
+    message: {
         textAlign: 'center',
+        marginBottom: 20,
+        color: '#666',
     },
     button: {
         backgroundColor: '#007AFF',
-        padding: 15,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
         borderRadius: 8,
     },
     buttonText: {
-        color: 'white',
+        color: '#fff',
         fontSize: 16,
+        fontWeight: '600',
     },
 });
 

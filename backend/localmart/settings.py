@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,11 +30,37 @@ SECRET_KEY = 'django-insecure-++mc$)&s5bqh4g-fp5-lknk6n4t=e)@q^i#4jl7eh!@9k3_ce#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    '*',
-    '192.168.201.247',
-    'localhost',
-    '127.0.0.1',
+ALLOWED_HOSTS = ['*']  # For development only
+CORS_ALLOW_ALL_ORIGINS = True  # For development only
+
+# Update CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:19006",
+    "http://localhost:19000",
+    "http://localhost:19001",
+    "http://localhost:19002",
+    "exp://192.168.201.248:19000",  # Add your Expo development URL
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
 ]
 
 
@@ -47,13 +78,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'storages',
+    'channels',
+    'rest_framework_simplejwt',
     
     # Local apps
-    'chat.apps.ChatConfig',
-    'api.apps.ApiConfig',
     'users.apps.UsersConfig',
     'products.apps.ProductsConfig',
-    'rest_framework_simplejwt',
+    'chat.apps.ChatConfig',
 ]
 
 MIDDLEWARE = [
@@ -65,6 +96,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'localmart.middleware.ErrorHandlingMiddleware',
+    'localmart.middleware.AuthenticationMiddleware',
+    'localmart.middleware.TokenValidationMiddleware',
 ]
 
 ROOT_URLCONF = 'localmart.urls'
@@ -141,40 +175,43 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+# Storage settings
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-AWS_S3_ENDPOINT_URL = 'http://localhost:9000'
-AWS_ACCESS_KEY_ID = 'minioadmin'
-AWS_SECRET_ACCESS_KEY = 'minioadmin'
-AWS_STORAGE_BUCKET_NAME = 'localmart'
+AWS_S3_ENDPOINT_URL = os.getenv('MINIO_ENDPOINT')
+AWS_ACCESS_KEY_ID = os.getenv('MINIO_ACCESS_KEY')
+AWS_SECRET_ACCESS_KEY = os.getenv('MINIO_SECRET_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('MINIO_BUCKET_NAME')
 AWS_S3_REGION_NAME = 'us-east-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_DEFAULT_ACL = 'public-read'
+AWS_QUERYSTRING_AUTH = False
 
 # Add CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:19006",
+    "http://192.168.201.207:19000",
+    "http://192.168.201.207:19001",
+    "http://192.168.201.207:19002",
     "http://localhost:19000",
-    "http://192.168.201.247:19006",
-    "http://192.168.201.247:19000",
-    "http://192.168.201.247:8000",
-    "exp://192.168.201.247:19000",
+    "http://localhost:19001",
+    "http://localhost:19002",
+    "http://localhost:19006",
+    "http://192.168.201.248:19000",
+    "http://192.168.201.248:19001",
+    "http://192.168.201.248:19002",
+    "http://192.168.201.248:19006",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True  # For development only
 
 # Add REST Framework settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'users.authentication.CustomJWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
-        'rest_framework.parsers.FormParser',
-        'rest_framework.parsers.MultiPartParser',
-    ],
+    ),
+    'EXCEPTION_HANDLER': 'localmart.utils.custom_exception_handler'
 }
 
 AUTH_USER_MODEL = 'users.User'
@@ -186,15 +223,77 @@ CSRF_COOKIE_SAMESITE = None    # For development only
 CSRF_COOKIE_HTTPONLY = False   # For development only
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:19006",
-    "http://192.168.201.247:19006",
+    "http://192.168.201.248:19006",
+    "http://192.168.201.248:19000",
+    "http://192.168.201.248:19001",
+    "http://192.168.201.248:19002",
     "http://192.168.201.247:19000",
+    "http://192.168.201.247:19001",
+    "http://192.168.201.247:19002",
 ]
 
 # JWT Settings
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Channel Layer Configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
+
+# Update ASGI application
+ASGI_APPLICATION = 'localmart.routing.application'
+
+# Add logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'debug.log',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_EXPOSE_HEADERS = ['content-type', 'content-disposition']

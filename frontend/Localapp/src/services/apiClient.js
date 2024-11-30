@@ -2,18 +2,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './api';
 
 class ApiClient {
-    async getHeaders() {
+    async getHeaders(isFormData = false) {
         const token = await AsyncStorage.getItem('access_token');
         return {
             'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+            ...(token ? { 'Authorization': token } : {})
         };
     }
 
     async request(endpoint, options = {}) {
         try {
-            const headers = await this.getHeaders();
+            const isFormData = options.body instanceof FormData;
+            const headers = await this.getHeaders(isFormData);
+            
             const response = await fetch(`${API_URL}${endpoint}`, {
                 ...options,
                 headers: {
@@ -22,12 +24,13 @@ class ApiClient {
                 }
             });
 
+            const data = await response.json();
+            
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Request failed');
+                throw new Error(data.error || data.detail || 'Request failed');
             }
 
-            return await response.json();
+            return data;
         } catch (error) {
             console.error(`API Error (${endpoint}):`, error);
             throw error;

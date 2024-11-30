@@ -3,8 +3,11 @@ from .models import Category, Product, ProductImage, Review
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'parent')
-    search_fields = ('name',)
+    list_display = ('name', 'slug', 'parent', 'order', 'is_active')
+    list_filter = ('is_active', 'parent')
+    search_fields = ('name', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ('order', 'name')
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage

@@ -1,41 +1,90 @@
-export const API_URL = 'http://192.168.201.247:8000/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../config/api';
 
-export const getHeaders = async () => {
-    const token = await AsyncStorage.getItem('access_token');
-    return {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    };
-};
+export const apiClient = {
+    post: async (endpoint, data) => {
+        try {
+            const isAuthEndpoint = endpoint.includes('/auth/') || 
+                                 endpoint.includes('/users/login') || 
+                                 endpoint.includes('/users/register');
+            
+            const fullUrl = `${API_URL}${endpoint}`;
+            console.log('Making request to:', fullUrl);
+            console.log('Request data:', data);
+            
+            // Check if data is FormData
+            const isFormData = data instanceof FormData;
+            
+            const headers = {
+                'Accept': 'application/json',
+                // Only set Content-Type for non-FormData requests
+                ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+            };
 
-export const testConnection = async () => {
-    try {
-        console.log('Attempting to connect to:', `${API_URL}/test/`);
-        const response = await fetch(`${API_URL}/test/`, {
-            method: 'GET',
-            headers: {
+            // Add Authorization header for non-auth endpoints
+            if (!isAuthEndpoint) {
+                const token = await AsyncStorage.getItem('access_token');
+                if (token) {
+                    headers['Authorization'] = token;
+                }
+            }
+
+            const response = await fetch(fullUrl, {
+                method: 'POST',
+                headers,
+                // Don't stringify if it's FormData
+                body: isFormData ? data : JSON.stringify(data)
+            });
+
+            console.log('Response status:', response.status);
+            const responseData = await response.json();
+            console.log('Response data:', responseData);
+            
+            if (!response.ok) {
+                throw new Error(responseData.error || responseData.detail || 'Request failed');
+            }
+
+            return responseData;
+        } catch (error) {
+            console.error('API Request failed:', error);
+            if (error.message === 'Network request failed') {
+                throw new Error('Cannot connect to server. Please check your internet connection and server status.');
+            }
+            throw error;
+        }
+    },
+
+    get: async (endpoint) => {
+        try {
+            const token = await AsyncStorage.getItem('access_token');
+            const headers = {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-            },
-        });
-        
-        console.log('Response status:', response.status);
-        
-        // First check if response is ok
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            };
+
+            if (token) {
+                headers['Authorization'] = token;
+            }
+
+            const fullUrl = `${API_URL}${endpoint}`;
+            console.log('Making GET request to:', fullUrl);
+
+            const response = await fetch(fullUrl, {
+                method: 'GET',
+                headers
+            });
+
+            const data = await response.json();
+            console.log('GET Response:', data);
+            
+            if (!response.ok) {
+                throw new Error(data.error || data.detail || 'Request failed');
+            }
+
+            return data;
+        } catch (error) {
+            console.error('API Request failed:', error);
+            throw error;
         }
-        
-        // Parse the JSON response
-        const data = await response.json();
-        console.log('Parsed API Response:', data);
-        return data;
-    } catch (error) {
-        console.error('API Connection Error Details:', {
-            message: error.message,
-            stack: error.stack
-        });
-        throw error;
     }
 }; 
